@@ -73,7 +73,7 @@ Ao testar de ponta a ponta pela primeira vez, o workflow **não respondia** para
 1. **Leitura do payload errada.** O nó `Webhook` (typeVersion 2) entrega o corpo da requisição em `json.body`, não na raiz do item. O Code lia `$input.item.json.from`/`.mensagem` direto na raiz → `usuario` e `texto` saíam sempre vazios, então **nenhuma mensagem era classificada como pedido de ajuda**, mesmo contendo "ajuda".
 2. **Merge descartava o item.** Com `texto` vazio, o IF caía sempre no ramo falso. Como o `Merge` estava em `combine` / `combineByPosition`, e só uma das duas entradas chegava a receber item por execução, ele não conseguia formar um par e **descartava o item** — o `Respond to Webhook` nunca rodava, e a chamada HTTP terminava sem o corpo esperado.
 
-Correção aplicada: o Code agora lê de `json.body` (com fallback para a raiz, por robustez), e o Merge foi trocado para modo `append` (concatena o item de qualquer um dos dois ramos, em vez de tentar parear por posição — mais correto para ramos mutuamente exclusivos). Testado após a correção com os dois casos do desafio, ambos retornando o JSON esperado com HTTP 200 (ver `docs/teste-funcionando.jpg`).
+Correção aplicada: o Code agora lê de `json.body` (com fallback para a raiz, por robustez), e o Merge foi trocado para modo `append` (concatena o item de qualquer um dos dois ramos, em vez de tentar parear por posição — mais correto para ramos mutuamente exclusivos). Testado após a correção com os dois casos do desafio, ambos retornando o JSON esperado com HTTP 200 (ver `docs/teste-funcionando-com-ajuda.jpg` e `docs/teste-funcionando-sem-ajuda.jpg`).
 
 ## Como importar e testar
 
@@ -144,10 +144,11 @@ curl -X POST http://localhost:5678/webhook/triagem-mensagens \
 
 ```
 workflow/
-  triagem-mensagens-whatsapp.json   # workflow exportado do n8n (já com a correção)
+  triagem-mensagens-whatsapp.json     # workflow exportado do n8n (já com a correção)
 docs/
-  workflow-montado.jpg              # print do canvas montado
-  teste-funcionando.jpg             # print do teste real (input/output do nó final)
+  workflow-montado.jpg                # print do canvas montado
+  teste-funcionando-com-ajuda.jpg     # print do teste real: payload com "ajuda"
+  teste-funcionando-sem-ajuda.jpg     # print do teste real: payload sem "ajuda"
 README.md
 .gitignore
 ```
