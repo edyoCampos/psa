@@ -38,7 +38,7 @@ Retornar Usuario e Resposta (Respond to Webhook)
 | **Classificar Intencao Ajuda** | IF | Verifica se `texto` contém a substring `"ajuda"`. |
 | **Montar Resposta Prioritaria** | Set | Ramo verdadeiro: define `resposta = "Olá! Vou te ajudar agora mesmo."` |
 | **Montar Resposta Padrao** | Set | Ramo falso: define `resposta = "Mensagem recebida. Em breve retornaremos."` |
-| **Unificar Resposta** | Merge | Une os dois ramos (mutuamente exclusivos) num único caminho de saída, por posição. |
+| **Unificar Resposta** | Merge (modo `append`) | Une os dois ramos (mutuamente exclusivos) num único caminho de saída, concatenando o item de qualquer um dos dois. |
 | **Retornar Usuario e Resposta** | Respond to Webhook | Devolve `{ "usuario": ..., "resposta": ... }` como JSON, HTTP 200. |
 
 Três sticky notes no canvas (Entrada / Regra / Saída) documentam contrato de entrada, regra de classificação e contrato de saída diretamente no fluxo.
@@ -48,8 +48,8 @@ Três sticky notes no canvas (Entrada / Regra / Saída) documentam contrato de e
 Substitui o nó Set de normalização da Etapa 1 por um nó Code em JavaScript:
 
 ```javascript
-// Extrai remetente e normaliza mensagem para classificação case-insensitive
-const raw = $input.item.json;
+// Extrai remetente e normaliza mensagem (Webhook v2 entrega em json.body)
+const raw = $input.item.json.body ?? $input.item.json;
 
 const usuario = raw.from ?? '';
 const texto = String(raw.mensagem ?? '').toLowerCase();
@@ -64,6 +64,16 @@ return {
 
 - `usuario` sempre presente na resposta (string vazia se `from` não vier).
 - `texto` sempre convertido para string antes do `.toLowerCase()`, para não quebrar se `mensagem` vier como um tipo não-string.
+- Lê o payload de `$input.item.json.body` (onde o nó Webhook v2 realmente entrega os campos), com fallback para a raiz do item — ver "Bug corrigido" abaixo.
+
+## Bug corrigido (encontrado testando localmente)
+
+Ao testar de ponta a ponta pela primeira vez, o workflow **não respondia** para o caso feliz do próprio desafio (`"preciso de AJUDA"`). Dois defeitos, confirmados via execução real no n8n:
+
+1. **Leitura do payload errada.** O nó `Webhook` (typeVersion 2) entrega o corpo da requisição em `json.body`, não na raiz do item. O Code lia `$input.item.json.from`/`.mensagem` direto na raiz → `usuario` e `texto` saíam sempre vazios, então **nenhuma mensagem era classificada como pedido de ajuda**, mesmo contendo "ajuda".
+2. **Merge descartava o item.** Com `texto` vazio, o IF caía sempre no ramo falso. Como o `Merge` estava em `combine` / `combineByPosition`, e só uma das duas entradas chegava a receber item por execução, ele não conseguia formar um par e **descartava o item** — o `Respond to Webhook` nunca rodava, e a chamada HTTP terminava sem o corpo esperado.
+
+Correção aplicada: o Code agora lê de `json.body` (com fallback para a raiz, por robustez), e o Merge foi trocado para modo `append` (concatena o item de qualquer um dos dois ramos, em vez de tentar parear por posição — mais correto para ramos mutuamente exclusivos). Testado após a correção com os dois casos do desafio, ambos retornando o JSON esperado com HTTP 200 (ver `docs/teste-funcionando.jpg`).
 
 ## Como importar e testar
 
@@ -134,10 +144,10 @@ curl -X POST http://localhost:5678/webhook/triagem-mensagens \
 
 ```
 workflow/
-  triagem-mensagens-whatsapp.json   # workflow exportado do n8n
+  triagem-mensagens-whatsapp.json   # workflow exportado do n8n (já com a correção)
 docs/
-  workflow-montado.png              # print do canvas (adicionar)
-  teste-funcionando.png             # print do teste do webhook (adicionar)
+  workflow-montado.jpg              # print do canvas montado
+  teste-funcionando.jpg             # print do teste real (input/output do nó final)
 README.md
 .gitignore
 ```
