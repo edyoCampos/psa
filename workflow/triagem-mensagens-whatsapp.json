@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extrai remetente e normaliza mensagem para classificação case-insensitive\nconst raw = $input.item.json;\n\nconst usuario = raw.from ?? '';\nconst texto = String(raw.mensagem ?? '').toLowerCase();\n\nreturn {\n  json: {\n    usuario,\n    texto,\n  },\n};"
+        "jsCode": "// Extrai remetente e normaliza mensagem (Webhook v2 entrega em json.body)\nconst raw = $input.item.json.body ?? $input.item.json;\n\nconst usuario = raw.from ?? '';\nconst texto = String(raw.mensagem ?? '').toLowerCase();\n\nreturn {\n  json: {\n    usuario,\n    texto,\n  },\n};"
       },
       "id": "2b222222-bbbb-4bbb-8bbb-222222222222",
       "name": "Normalizar Usuario e Texto",
@@ -138,8 +138,7 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByPosition",
+        "mode": "append",
         "options": {}
       },
       "id": "6f666666-ffff-4fff-8fff-666666666666",
