@@ -1,0 +1,191 @@
+{
+  "name": "PSA - Triagem Mensagens WhatsApp (Webhook)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## ENTRADA (POST /webhook/triagem-mensagens)\n\n```json\n{\n  \"from\": \"5551999990000\",\n  \"mensagem\": \"Olá, preciso de AJUDA com meu pedido\"\n}\n```\n\nCampos esperados: `from`, `mensagem`. Sem validação — se algum vier ausente, o fluxo não rejeita a requisição, apenas trata como mensagem geral.",
+        "height": 280,
+        "width": 360
+      },
+      "id": "note-entrada",
+      "name": "Note - Entrada",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 40]
+    },
+    {
+      "parameters": {
+        "content": "## REGRA DE CLASSIFICAÇÃO\n\n1. Normaliza `mensagem` → minúsculas (`texto`)\n2. Se `texto` contém **\"ajuda\"** → resposta prioritária\n3. Caso contrário → resposta padrão\n\nMatch case-insensitive (normalização no Code).",
+        "height": 240,
+        "width": 340
+      },
+      "id": "note-regra",
+      "name": "Note - Regra",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [560, 40]
+    },
+    {
+      "parameters": {
+        "content": "## SAÍDA (JSON)\n\n```json\n{\n  \"usuario\": \"<from>\",\n  \"resposta\": \"<classificação>\"\n}\n```\n\n**Testes**\n• com `AJUDA` → prioritária\n• sem `ajuda` → padrão",
+        "height": 260,
+        "width": 320
+      },
+      "id": "note-saida",
+      "name": "Note - Saida",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1200, 40]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "triagem-mensagens",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1a111111-aaaa-4aaa-8aaa-111111111111",
+      "name": "Receber Mensagem WhatsApp",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 360],
+      "webhookId": "triagem-mensagens-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai remetente e normaliza mensagem para classificação case-insensitive\nconst raw = $input.item.json;\n\nconst usuario = raw.from ?? '';\nconst texto = String(raw.mensagem ?? '').toLowerCase();\n\nreturn {\n  json: {\n    usuario,\n    texto,\n  },\n};"
+      },
+      "id": "2b222222-bbbb-4bbb-8bbb-222222222222",
+      "name": "Normalizar Usuario e Texto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 360]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-ajuda",
+              "leftValue": "={{ $json.texto }}",
+              "rightValue": "ajuda",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3c333333-cccc-4ccc-8ccc-333333333333",
+      "name": "Classificar Intencao Ajuda",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [640, 360]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "resp-true",
+              "name": "resposta",
+              "value": "Olá! Vou te ajudar agora mesmo.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "4d444444-dddd-4ddd-8ddd-444444444444",
+      "name": "Montar Resposta Prioritaria",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, 240]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "resp-false",
+              "name": "resposta",
+              "value": "Mensagem recebida. Em breve retornaremos.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "5e555555-eeee-4eee-8eee-555555555555",
+      "name": "Montar Resposta Padrao",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [880, 480]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "6f666666-ffff-4fff-8fff-666666666666",
+      "name": "Unificar Resposta",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [1100, 360]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"usuario\": $json.usuario, \"resposta\": $json.resposta } }}",
+        "options": {}
+      },
+      "id": "7a777777-aaaa-4aaa-8aaa-777777777777",
+      "name": "Retornar Usuario e Resposta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1320, 360]
+    }
+  ],
+  "connections": {
+    "Receber Mensagem WhatsApp": {
+      "main": [[{ "node": "Normalizar Usuario e Texto", "type": "main", "index": 0 }]]
+    },
+    "Normalizar Usuario e Texto": {
+      "main": [[{ "node": "Classificar Intencao Ajuda", "type": "main", "index": 0 }]]
+    },
+    "Classificar Intencao Ajuda": {
+      "main": [
+        [{ "node": "Montar Resposta Prioritaria", "type": "main", "index": 0 }],
+        [{ "node": "Montar Resposta Padrao", "type": "main", "index": 0 }]
+      ]
+    },
+    "Montar Resposta Prioritaria": {
+      "main": [[{ "node": "Unificar Resposta", "type": "main", "index": 0 }]]
+    },
+    "Montar Resposta Padrao": {
+      "main": [[{ "node": "Unificar Resposta", "type": "main", "index": 1 }]]
+    },
+    "Unificar Resposta": {
+      "main": [[{ "node": "Retornar Usuario e Resposta", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
