@@ -1,12 +1,3 @@
-# Reversa (ferramentas de análise/IA usadas no processo, fora do escopo do entregável)
-.claude/
-.agents/
-.reversa/
-_reversa_sdd/
-_reversa_n8n/
-n8n_json_workflows/
-CLAUDE.md
-
 # Enunciado do desafio (material da PSA, não redistribuir)
 Desafio Prático Analista IA.pdf
 
